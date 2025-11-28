@@ -1,0 +1,31 @@
+name: ShellCheck
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '**.sh'
+  pull_request:
+    branches: [main]
+    paths:
+      - '**.sh'
+
+jobs:
+  shellcheck:
+    name: ShellCheck
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run ShellCheck
+        uses: ludeeus/action-shellcheck@master
+        with:
+          severity: warning
+          scandir: '.'
+          format: tty
+        env:
+          SHELLCHECK_OPTS: -e SC2155 -e SC1091
+          # SC2155: Declare and assign separately to avoid masking return values
+          # SC1091: Not following sourced files (we bundle, so no external sources)
