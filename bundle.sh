@@ -20,10 +20,6 @@ LIB_FILE="$SCRIPT_DIR/am-i-ai.sh"
 # Extract just the function definitions from am-i-ai.sh
 # Skips the shebang, version info, CLI handling, and if-main block
 extract_functions() {
-    local in_function=false
-    local brace_count=0
-    local skip_next=false
-
     # Use awk to extract function definitions
     awk '
     BEGIN {
@@ -145,7 +141,7 @@ fi
 
 # Create temp file for output
 TEMP_FILE=$(mktemp)
-trap "rm -f $TEMP_FILE" EXIT
+trap 'rm -f "$TEMP_FILE"' EXIT
 
 # Process the input file
 while IFS= read -r line || [ -n "$line" ]; do
