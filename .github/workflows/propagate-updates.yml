@@ -21,8 +21,12 @@ jobs:
         repo:
           - name: ai-aligned-git
             file: executable_git
+            marker: "# --- BEGIN BUNDLED am-i-ai ---"
+            end_marker: "# --- END BUNDLED am-i-ai ---"
           - name: ai-aligned-gh
             file: executable_gh
+            marker: "# --- BEGIN BUNDLED am-i-ai ---"
+            end_marker: "# --- END BUNDLED am-i-ai ---"
       fail-fast: false
 
     steps:
@@ -50,148 +54,145 @@ jobs:
           token: ${{ secrets.REPO_ACCESS_TOKEN }}
           path: target-repo
 
-      - name: Extract detection functions from am-i-ai
+      - name: Extract and bundle detection functions
         if: steps.should-run.outputs.run == 'true'
-        id: extract
+        id: bundle
         run: |
-          # Extract the core detection functions from am-i-ai.sh
-          # These are the functions that need to be embedded in the target scripts
-
           cd am-i-ai
 
           # Get version
           VERSION=$(grep 'AMI_VERSION=' am-i-ai.sh | head -1 | cut -d'"' -f2)
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-          # Extract functions between markers (we'll create a snippet file)
-          cat > detection-functions.sh << 'DETECTION_EOF'
-# AI Detection Functions
-# Extracted from am-i-ai v${VERSION}
+          # Extract function definitions from am-i-ai.sh
+          # This creates a bundled version that can be inserted into other scripts
+          cat > ../bundled-functions.sh << 'BUNDLE_EOF'
+# --- BEGIN BUNDLED am-i-ai ---
+# Bundled from am-i-ai vVERSION_PLACEHOLDER
 # https://github.com/trieloff/am-i-ai
+#
+# This code is auto-generated. Do not edit manually.
+# To update, run the propagate-updates workflow in am-i-ai.
 
-# Function to check if a process name contains a pattern (case-insensitive)
-process_contains() {
-    local pid=$1
-    local pattern=$2
+BUNDLE_EOF
 
-    # Get process command and name
-    if [[ "$OSTYPE" == "darwin"* ]]; then
-        # macOS
-        ps -p "$pid" -o comm= 2>/dev/null | grep -qi "$pattern" || \
-        ps -p "$pid" -o command= 2>/dev/null | grep -qi "$pattern"
-    else
-        # Linux
-        ps -p "$pid" -o comm= 2>/dev/null | grep -qi "$pattern" || \
-        ps -p "$pid" -o cmd= 2>/dev/null | grep -qi "$pattern"
-    fi
-}
+          # Extract the core functions (skip shebang, CLI handling, version checks)
+          awk '
+            /^ami_process_contains\(\)/,/^}$/ { print; next }
+            /^ami_check_env\(\)/,/^}$/ { print; next }
+            /^ami_check_ps_tree\(\)/,/^}$/ { print; next }
+            /^ami_detect\(\)/,/^}$/ { print; next }
+            /^ami_is_ai\(\)/,/^}$/ { print; next }
+            /^ami_detect_all\(\)/,/^}$/ { print; next }
+            /^ami_get_email\(\)/,/^}$/ { print; next }
+            /^ami_get_name\(\)/,/^}$/ { print; next }
+            /^_ami_debug\(\)/,/^}$/ { print; next }
+          ' am-i-ai.sh >> ../bundled-functions.sh
 
-DETECTION_EOF
+          # Add function aliases
+          cat >> ../bundled-functions.sh << 'ALIASES_EOF'
 
-          # Extract check_env_vars function
-          sed -n '/^ami_check_env()/,/^}/p' am-i-ai.sh | \
-            sed 's/ami_check_env/check_env_vars/g' | \
-            sed 's/_ami_debug/debug_log/g' >> detection-functions.sh
+# Function aliases for backward compatibility
+process_contains() { ami_process_contains "$@"; }
+check_env_vars() { ami_check_env; }
+check_ps_tree() { ami_check_ps_tree; }
+detect_ai_tool() { ami_detect; }
+# --- END BUNDLED am-i-ai ---
+ALIASES_EOF
 
-          # Extract check_ps_tree function
-          sed -n '/^ami_check_ps_tree()/,/^}/p' am-i-ai.sh | \
-            sed 's/ami_check_ps_tree/check_ps_tree/g' | \
-            sed 's/ami_process_contains/process_contains/g' | \
-            sed 's/_ami_debug/debug_log/g' >> detection-functions.sh
+          # Replace version placeholder
+          sed -i "s/VERSION_PLACEHOLDER/$VERSION/" ../bundled-functions.sh
 
-          # Extract detect_ai_tool function
-          sed -n '/^ami_detect()/,/^}/p' am-i-ai.sh | \
-            sed 's/ami_detect/detect_ai_tool/g' | \
-            sed 's/ami_check_env/check_env_vars/g' | \
-            sed 's/ami_check_ps_tree/check_ps_tree/g' | \
-            sed 's/_ami_debug/debug_log/g' >> detection-functions.sh
+          echo "Generated bundled functions:"
+          head -20 ../bundled-functions.sh
 
-          echo "Extracted detection functions:"
-          cat detection-functions.sh
-
-      - name: Check for changes needed
+      - name: Update target script
         if: steps.should-run.outputs.run == 'true'
-        id: check-changes
+        id: update
         run: |
           cd target-repo
+          TARGET_FILE="${{ matrix.repo.file }}"
+          VERSION="${{ steps.bundle.outputs.version }}"
 
-          # Check if the target file exists
-          if [ ! -f "${{ matrix.repo.file }}" ]; then
-            echo "Target file ${{ matrix.repo.file }} not found"
+          if [ ! -f "$TARGET_FILE" ]; then
+            echo "Target file not found: $TARGET_FILE"
             echo "changes=false" >> $GITHUB_OUTPUT
             exit 0
           fi
 
-          # For now, we'll create the PR regardless and let humans review
-          # In future, we could do a smarter diff of the detection functions
-          echo "changes=true" >> $GITHUB_OUTPUT
+          # Check if target has bundle markers
+          if grep -q "# --- BEGIN BUNDLED am-i-ai ---" "$TARGET_FILE"; then
+            echo "Found existing bundle markers, replacing..."
 
-      - name: Create branch and PR
-        if: steps.should-run.outputs.run == 'true' && steps.check-changes.outputs.changes == 'true'
+            # Create new file with replaced bundle section
+            awk '
+              /^# --- BEGIN BUNDLED am-i-ai ---$/ {
+                skip = 1
+                system("cat ../bundled-functions.sh")
+                next
+              }
+              /^# --- END BUNDLED am-i-ai ---$/ {
+                skip = 0
+                next
+              }
+              !skip { print }
+            ' "$TARGET_FILE" > "${TARGET_FILE}.new"
+
+            mv "${TARGET_FILE}.new" "$TARGET_FILE"
+            chmod +x "$TARGET_FILE"
+            echo "changes=true" >> $GITHUB_OUTPUT
+          else
+            echo "No bundle markers found in $TARGET_FILE"
+            echo "Please add markers to enable auto-updates:"
+            echo "  # --- BEGIN BUNDLED am-i-ai ---"
+            echo "  # --- END BUNDLED am-i-ai ---"
+            echo "changes=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create PR if changes
+        if: steps.should-run.outputs.run == 'true' && steps.update.outputs.changes == 'true'
         env:
           GH_TOKEN: ${{ secrets.REPO_ACCESS_TOKEN }}
         run: |
           cd target-repo
-
-          VERSION="${{ steps.extract.outputs.version }}"
-          BRANCH="update-am-i-ai-$VERSION-$(date +%Y%m%d%H%M%S)"
+          VERSION="${{ steps.bundle.outputs.version }}"
+          BRANCH="update-am-i-ai-v$VERSION-$(date +%Y%m%d%H%M%S)"
 
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          # Create new branch
           git checkout -b "$BRANCH"
-
-          # Copy the am-i-ai.sh library for reference
-          cp ../am-i-ai/am-i-ai.sh vendor-am-i-ai.sh 2>/dev/null || true
-
-          # Stage changes
           git add -A
 
-          # Check if there are changes to commit
           if git diff --staged --quiet; then
             echo "No changes to commit"
             exit 0
           fi
 
-          # Commit
-          git commit -m "Update AI detection from am-i-ai v$VERSION
+          git commit -m "Update bundled am-i-ai to v$VERSION
 
-This PR updates the AI detection functions to match am-i-ai v$VERSION.
+Automatically updated AI detection functions from am-i-ai v$VERSION.
 
-Changes were automatically propagated from:
-https://github.com/trieloff/am-i-ai
-
-Please review the detection logic changes and update the local
-functions accordingly.
+Changes from: https://github.com/trieloff/am-i-ai/commits/main
 
 Generated by: https://github.com/trieloff/am-i-ai/actions"
 
-          # Push
           git push origin "$BRANCH"
 
-          # Create PR
           gh pr create \
-            --title "Update AI detection from am-i-ai v$VERSION" \
+            --title "Update bundled am-i-ai to v$VERSION" \
             --body "## Summary
 
-This PR updates the AI detection functions to match am-i-ai v$VERSION.
+Automatically updates the bundled am-i-ai detection functions to v$VERSION.
 
-## Changes
+## What changed
 
-The am-i-ai library has been updated with new detection logic. Please review the changes and update the local detection functions in \`${{ matrix.repo.file }}\` accordingly.
+See the am-i-ai changelog: https://github.com/trieloff/am-i-ai/commits/main
 
-### Reference
+## Test plan
 
-- Source: https://github.com/trieloff/am-i-ai
-- Version: v$VERSION
-
-## Manual Steps Required
-
-1. Review the detection changes in \`vendor-am-i-ai.sh\`
-2. Update the local \`process_contains\`, \`check_env_vars\`, \`check_ps_tree\`, and \`detect_ai_tool\` functions
-3. Test the changes locally
-4. Merge this PR
+- [ ] Run detection tests
+- [ ] Verify AI tool detection still works
 
 ---
 
