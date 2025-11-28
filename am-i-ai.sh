@@ -296,10 +296,19 @@ ami_check_ps_tree() {
             detected="$detected cline"
             _ami_debug "Detected Cline in process tree at depth $depth"
         fi
-        # Roo Code detection
-        if ami_process_contains "$current_pid" "roo"; then
-            detected="$detected roo"
-            _ami_debug "Detected Roo Code in process tree at depth $depth"
+        # Roo Code detection - use word boundary to avoid matching "kangaroo", etc.
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            if ps -p "$current_pid" -o comm= 2>/dev/null | grep -qiw "roo" || \
+               ps -p "$current_pid" -o command= 2>/dev/null | grep -qiw "roo"; then
+                detected="$detected roo"
+                _ami_debug "Detected Roo Code in process tree at depth $depth"
+            fi
+        else
+            if ps -p "$current_pid" -o comm= 2>/dev/null | grep -qiw "roo" || \
+               ps -p "$current_pid" -o cmd= 2>/dev/null | grep -qiw "roo"; then
+                detected="$detected roo"
+                _ami_debug "Detected Roo Code in process tree at depth $depth"
+            fi
         fi
         # Windsurf detection
         if ami_process_contains "$current_pid" "windsurf"; then
