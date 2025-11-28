@@ -168,6 +168,12 @@ ami_check_env() {
         _ami_debug "Detected Goose via environment variable"
     fi
 
+    # Auggie detection (Augment Code)
+    if [ -n "$AUGMENT_API_TOKEN" ]; then
+        detected="$detected auggie"
+        _ami_debug "Detected Auggie via environment variable"
+    fi
+
     # Cline detection (VS Code extension)
     if [ -n "$CLINE_TASK_ID" ]; then
         detected="$detected cline"
@@ -280,6 +286,11 @@ ami_check_ps_tree() {
             detected="$detected goose"
             _ami_debug "Detected Goose in process tree at depth $depth"
         fi
+        # Auggie detection - look for auggie in process command
+        if ami_process_contains "$current_pid" "auggie"; then
+            detected="$detected auggie"
+            _ami_debug "Detected Auggie in process tree at depth $depth"
+        fi
         # Cline detection
         if ami_process_contains "$current_pid" "cline"; then
             detected="$detected cline"
@@ -337,7 +348,7 @@ ami_detect() {
     _ami_debug "Process tree detected: '$ps_detected'"
     _ami_debug "Combined detected: '$all_detected'"
 
-    # Priority order: Amp > Codex > Aider > Claude > Gemini > Qwen > Droid > OpenCode > Cursor > Copilot > Kimi > OpenHands > Cline > Roo > Windsurf > Crush > Goose > Zed
+    # Priority order: Amp > Codex > Aider > Claude > Gemini > Qwen > Droid > OpenCode > Cursor > Copilot > Kimi > OpenHands > Cline > Roo > Windsurf > Crush > Goose > Auggie > Zed
     # Zed is last because it often hosts other AI tools
     # More specific AI tools take precedence over IDE-level tools
     if [[ "$all_detected" =~ "amp" ]]; then
@@ -391,6 +402,9 @@ ami_detect() {
     elif [[ "$all_detected" =~ "goose" ]]; then
         _ami_debug "Final result: goose"
         echo "goose"
+    elif [[ "$all_detected" =~ "auggie" ]]; then
+        _ami_debug "Final result: auggie"
+        echo "auggie"
     elif [[ "$all_detected" =~ "zed" ]]; then
         _ami_debug "Final result: zed"
         echo "zed"
@@ -444,6 +458,7 @@ ami_get_email() {
         "openhands") echo "openhands@all-hands.dev" ;;
         "crush")    echo "crush@charm.land" ;;
         "goose")    echo "goose@opensource.block.xyz" ;;
+        "auggie")   echo "noreply@augmentcode.com" ;;
         "cline")    echo "cline@cline.bot" ;;
         "roo")      echo "roo@roocode.dev" ;;
         "windsurf") echo "cascade@codeium.com" ;;
@@ -472,6 +487,7 @@ ami_get_name() {
         "openhands") echo "OpenHands" ;;
         "crush")    echo "Crush" ;;
         "goose")    echo "Goose User" ;;
+        "auggie")   echo "Augment Code" ;;
         "cline")    echo "Cline" ;;
         "roo")      echo "Roo Code" ;;
         "windsurf") echo "Windsurf Cascade" ;;
