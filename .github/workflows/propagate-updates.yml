@@ -1,4 +1,5 @@
 name: Propagate Updates to Dependent Repos
+# Propagates am-i-ai updates to ai-aligned-git and ai-aligned-gh
 
 on:
   push:
