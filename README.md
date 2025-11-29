@@ -2,6 +2,8 @@
 
 [![Part of AI Ecoverse](https://img.shields.io/badge/AI-Ecoverse-blue?style=for-the-badge)](https://github.com/trieloff/ai-ecoverse)
 
+![am-i-ai hero](hero.png)
+
 A lightweight, portable shell library for detecting whether code is being executed by an AI coding agent. Used by [ai-aligned-git](https://github.com/trieloff/ai-aligned-git) and [ai-aligned-gh](https://github.com/trieloff/ai-aligned-gh) to provide proper AI attribution.
 
 ## Why?
