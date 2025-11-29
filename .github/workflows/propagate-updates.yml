@@ -67,15 +67,15 @@ jobs:
 
           # Extract function definitions from am-i-ai.sh
           # This creates a bundled version that can be inserted into other scripts
-          cat > ../bundled-functions.sh << 'BUNDLE_EOF'
-# --- BEGIN BUNDLED am-i-ai ---
-# Bundled from am-i-ai vVERSION_PLACEHOLDER
-# https://github.com/trieloff/am-i-ai
-#
-# This code is auto-generated. Do not edit manually.
-# To update, run the propagate-updates workflow in am-i-ai.
-
-BUNDLE_EOF
+          {
+            echo '# --- BEGIN BUNDLED am-i-ai ---'
+            echo "# Bundled from am-i-ai v$VERSION"
+            echo '# https://github.com/trieloff/am-i-ai'
+            echo '#'
+            echo '# This code is auto-generated. Do not edit manually.'
+            echo '# To update, run the propagate-updates workflow in am-i-ai.'
+            echo ''
+          } > ../bundled-functions.sh
 
           # Extract the core functions (skip shebang, CLI handling, version checks)
           awk '
@@ -91,18 +91,15 @@ BUNDLE_EOF
           ' am-i-ai.sh >> ../bundled-functions.sh
 
           # Add function aliases
-          cat >> ../bundled-functions.sh << 'ALIASES_EOF'
-
-# Function aliases for backward compatibility
-process_contains() { ami_process_contains "$@"; }
-check_env_vars() { ami_check_env; }
-check_ps_tree() { ami_check_ps_tree; }
-detect_ai_tool() { ami_detect; }
-# --- END BUNDLED am-i-ai ---
-ALIASES_EOF
-
-          # Replace version placeholder
-          sed -i "s/VERSION_PLACEHOLDER/$VERSION/" ../bundled-functions.sh
+          {
+            echo ''
+            echo '# Function aliases for backward compatibility'
+            echo 'process_contains() { ami_process_contains "$@"; }'
+            echo 'check_env_vars() { ami_check_env; }'
+            echo 'check_ps_tree() { ami_check_ps_tree; }'
+            echo 'detect_ai_tool() { ami_detect; }'
+            echo '# --- END BUNDLED am-i-ai ---'
+          } >> ../bundled-functions.sh
 
           echo "Generated bundled functions:"
           head -20 ../bundled-functions.sh
