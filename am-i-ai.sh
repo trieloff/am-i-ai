@@ -75,8 +75,8 @@ ami_check_env() {
         _ami_debug "Detected Qwen via environment variable"
     fi
 
-    # Cursor detection
-    if [ -n "$CURSOR_AI" ]; then
+    # Cursor detection - use CURSOR_AGENT to avoid false positives in Cursor IDE terminals
+    if [ -n "$CURSOR_AGENT" ]; then
         detected="$detected cursor"
         _ami_debug "Detected Cursor via environment variable"
     fi
@@ -267,7 +267,8 @@ ami_check_ps_tree() {
             detected="$detected opencode"
             _ami_debug "Detected OpenCode in process tree at depth $depth"
         fi
-        if ami_process_contains "$current_pid" "cursor"; then
+        # Cursor detection - use cursor-agent to avoid false positives in Cursor IDE terminals
+        if ami_process_contains "$current_pid" "cursor-agent"; then
             detected="$detected cursor"
             _ami_debug "Detected Cursor in process tree at depth $depth"
         fi
