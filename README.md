@@ -67,7 +67,7 @@ ami_detect_all
 |------|------------------|---------------------|
 | [Claude Code](https://claude.ai/claude-code) | Process + env | `CLAUDECODE`, `CLAUDE_CODE_ENTRYPOINT` |
 | [Gemini](https://codeassist.google/) | Process + env | `GEMINI_CLI` |
-| [Codex CLI](https://openai.com) | Process + env | `CODEX_CLI`, `CODEX_SANDBOX` |
+| [Codex](https://openai.com/codex/) | Process + env | `CODEX_CLI`, `CODEX_SANDBOX`, `CODEX_SHELL`, `CODEX_THREAD_ID` |
 | [Cursor](https://cursor.com) | Process + env | `CURSOR_AGENT` |
 | [Aider](https://aider.chat) | Process + env | `OR_APP_NAME=Aider` |
 | [Amp](https://ampcode.com) | Process + env | `AGENT=amp`, `AMP_HOME` |
