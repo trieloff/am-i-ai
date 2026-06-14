@@ -80,6 +80,7 @@ ami_detect_all
 | [OpenHands](https://openhands.ai) | Process + env | `OR_APP_NAME=OpenHands`, `OR_SITE_URL` |
 | [Crush](https://charm.sh/tools/crush/) | Process only | (detected via process tree) |
 | [Goose](https://github.com/block/goose) | Process + env | `GOOSE_TERMINAL` |
+| [Auggie](https://www.augmentcode.com) | Process + env | `AUGMENT_API_TOKEN`, `AUGMENT_AGENT` |
 | [Cline](https://cline.bot) | Process + env | `CLINE_TASK_ID` |
 | [Roo Code](https://roocode.dev) | Process + env | `ROO_CODE_TASK_ID` |
 | [Windsurf](https://codeium.com/windsurf) | Process + env | `WINDSURF_SESSION` |
